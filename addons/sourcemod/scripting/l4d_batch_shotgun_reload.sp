@@ -176,7 +176,8 @@ void LoadDataConfig()
 		weaponSetting.SetString("weapon", buffer);
 
 		kv.GetString("shells_per_load", buffer, sizeof(buffer));
-		weaponSetting.SetString("shells_per_load", buffer);
+		int shells_per_load = StringToInt(buffer);
+		if (shells_per_load > 0) weaponSetting.SetValue("shells_per_load", shells_per_load);
 		
 		g_hWeaponSettings.Push(weaponSetting);
 	} while (kv.GotoNextKey());
@@ -186,6 +187,7 @@ void LoadDataConfig()
 }
 
 public void OnEntityCreated(int entity, const char[] name_entity) {
+	if (!IsValidEntity(entity)) return;
 	StringMap weaponSetting = GetWeaponSetting(name_entity);
 	if (weaponSetting != INVALID_HANDLE)
 	{
@@ -199,8 +201,9 @@ void OnReloadPost(int weapon, bool agree) {
 	StringMap weaponSetting = GetWeaponSetting(classname);
 	if (agree && weaponSetting != INVALID_HANDLE) 
 	{
+		// calculate how many times needed to load shells
 		int shellsToLoad = 3;
-		weaponSetting.GetValue("shells_to_load", shellsToLoad);
+		weaponSetting.GetValue("shells_per_load", shellsToLoad);
 		int client = GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity");
 
 		if (weapon == -1) return;
@@ -292,21 +295,20 @@ Action TimerReload(Handle timer, int weapon)
 		static char classname[32];
 		GetEdictClassname(weapon, classname, sizeof(classname));
 		StringMap weaponSetting = GetWeaponSetting(classname);
-		int shellsToLoad = 3;
-		weaponSetting.GetValue("shells_to_load", shellsToLoad);
+		int shellsToLoad = 1;
+		weaponSetting.GetValue("shells_per_load", shellsToLoad);
 		int currentAmmo = GetEntProp(weapon, Prop_Send, "m_iClip1");
 		g_iReserveAmmo[client] = GetReserveAmmo(weapon, client);
 
+		// shell inserted moment
 		if (g_iPreviousReloadingClip[client] != currentAmmo)
 		{
-			// int reloadNumShells = GetEntProp(weapon, Prop_Send, "m_reloadNumShells");
-			// int shellsInserted = GetEntProp(weapon, Prop_Send, "m_shellsInserted");
-			// PrintToChatAll("	Reloading: classname - %s | previous_ammo - %d | ammo - %d | m_reloadNumShells - %d | m_shellsInserted - %d", classname, g_iPreviousReloadingClip[client], currentAmmo, reloadNumShells, shellsInserted);
-
+			// undo that shell insert
 			currentAmmo -= 1;
 			g_iReserveAmmo[client] += 1;
 			int maxAmmo = g_iMaxClip[client] <= g_iReserveAmmo[client] + currentAmmo ? g_iMaxClip[client] : g_iReserveAmmo[client] + currentAmmo;
 
+			// batch insert
 			int shellsToInsert = (maxAmmo - currentAmmo > shellsToLoad) ? shellsToLoad : maxAmmo - currentAmmo;
 			currentAmmo += shellsToInsert;
 			SetEntProp(weapon, Prop_Send, "m_iClip1", currentAmmo);
@@ -321,15 +323,6 @@ Action TimerReload(Handle timer, int weapon)
 				SDKCall(g_hSDK_Call_FinishReload, weapon);
 				return Plugin_Stop;
 			}
-			
-			// int reloadState = GetEntProp(weapon, Prop_Send, "m_reloadState");
-			// int reloadAnimState = GetEntProp(weapon, Prop_Send, "m_reloadAnimState");
-			// int sequence = GetEntProp(weapon,Prop_Send,"m_nSequence");
-			// PrintToChatAll("		Reloading: reloadState - %d| reloadAnimState - %d | sequence - %d", reloadState, reloadAnimState, sequence);
-		
-			// reloadNumShells = GetEntProp(weapon, Prop_Send, "m_reloadNumShells");
-			// shellsInserted = GetEntProp(weapon, Prop_Send, "m_shellsInserted");
-			// PrintToChatAll("			Reloading: ammo - %d | m_reloadNumShells - %d | m_shellsInserted - %d", currentAmmo, reloadNumShells, shellsInserted);
 		}
 		return Plugin_Continue;
 	}
