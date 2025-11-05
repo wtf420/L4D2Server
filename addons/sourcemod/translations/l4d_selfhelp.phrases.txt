@@ -51,6 +51,13 @@
 		"pt"		"Você encontrou um kit de primeiros socorros."
 		"ru"		"Вы нашли Аптечку."
 	}
+	"Found Defibrillator"
+	{
+		"en"		"You have found a defibrillator."
+		"es"		"Encontraste un desfibrilador."
+		"pt"		"Você encontrou um desfibrilador."
+		"ru"		"Вы нашли дефибриллятор."
+	}
 	"Found Pistol"
 	{
 		"en"		"You have found a pistol."
@@ -61,26 +68,34 @@
 	"Self Help with Pills"
 	{
 		"#format"	"{1:N}"
-		"en"		"{1} helped himself with pills!"
+		"en"		"{1} helped themselves with pills!"
 		"es"		"¡{1}se auto-ayudó con pills!"
-		"pt"		"{1} se auto-ajudou com pílulas!
+		"pt"		"{1} se auto-ajudou com pílulas!"
 		"ru"		"{1} выручил себя с помощью Таблеток!"
 	}
 	"Self Help with Adrenaline"
 	{
 		"#format"	"{1:N}"
-		"en"		"{1} helped himself with adrenaline!"
+		"en"		"{1} helped themselves with adrenaline!"
 		"es"		"¡{1}se auto-ayudó con adrenalina!"
-		"pt"		"{1} se auto-ajudou com adrenalina!
+		"pt"		"{1} se auto-ajudou com adrenalina!"
 		"ru"		"{1} выручил себя с помощью Адреналина!"
 	}
 	"Self Help with Medkit"
 	{
 		"#format"	"{1:N}"
-		"en"		"{1} helped himself with medkit!"
+		"en"		"{1} helped themselves with medkit!"
 		"es"		"¡{1}se auto-ayudó con botiquin!"
 		"pt"		"{1} se auto-ajudou com o kit de primeiros socorros!"
 		"ru"		"{1} выручил себя с помощью Аптечки!"
+	}
+	"Self Help with Defibrillator"
+	{
+		"#format"	"{1:N}"
+		"en"		"{1} helped themselves with defibrillator!"
+		"es"		"¡{1}se auto-ayudó con desfibrilador!"
+		"pt"		"{1} se auto-ajudou com o desfibrilador!"
+		"ru"		"{1} выручил себя с помощью дефибриллятор!"
 	}
 	"Self Help Failed"
 	{
@@ -91,7 +106,7 @@
 	}
 	"Self Help Other"
 	{
-		"#format"	"{1:N},{2:N}"
+		"#format"	"{1:N,2:N}"
 		"en"		"{1} helped {2} when incapacitated."
 		"es"		"{1} ayudó a {2} estando incapacitado."
 		"pt"		"{1} ajudou {2} enquanto estava incapacitado."
