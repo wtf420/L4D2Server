@@ -1,0 +1,28 @@
+﻿"Phrases"
+{
+	"New Tank Spawning"
+	{
+		"de"			"Neuer Tank erscheint"
+	}
+
+	"Bot"
+	{
+		"de"			"Bot"
+	}
+
+	"loose tank control"
+	{
+		"de"			"verliere kontrolle über Tank"
+	}
+
+	"loose first tank control"
+	{
+		"de"			"verliere kontrolle über ersten Tank"
+	}
+
+	"loose tank control and control going to bot"
+	{
+		"de"			"verliere kontrolle über Tank und wird vom Bot übernommen"
+	}
+
+}

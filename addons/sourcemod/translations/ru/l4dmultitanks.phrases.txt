@@ -1,0 +1,28 @@
+﻿"Phrases"
+{
+	"New Tank Spawning"
+	{
+		"ru"			"Новый Танк Появился"
+	}
+
+	"Bot"
+	{
+		"ru"			"Бот"
+	}
+
+	"loose tank control"
+	{
+		"ru"			"потерял контроль танком"
+	}
+
+	"loose first tank control"
+	{
+		"ru"			"потерял первый контроль танком"
+	}
+
+	"loose tank control and control going to bot"
+	{
+		"ru"			"потерял контроль танком и контроль перешел к боту"
+	}
+
+}
