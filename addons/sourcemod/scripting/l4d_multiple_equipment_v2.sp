@@ -45,6 +45,7 @@ float LastSwitchTime[MAXPLAYERS+1];
 float LastMeSwitchTime[MAXPLAYERS+1];
 
 Handle l4d_me_mode;
+Handle l4d_me_cooldown;
 Handle l4d_me_cookie;
 Handle l4d_me_view;
 Handle l4d_me_slot[5];
@@ -145,6 +146,7 @@ public void OnPluginStart()
 	l4d_me_slot[4] = CreateConVar("l4d_me_slot4", "1", "(Pills), 0=Disable, 1=Enable");
 	l4d_me_mode = CreateConVar("l4d_me_mode", "2", "0=Single Tap Mode, 1=Double Tap Mode, 2=Shift + Reload");
 	l4d_me_view = CreateConVar("l4d_me_view", "1", "0=Disable Extra Equipment View, 1=Enable Extra Equipment View");
+	l4d_me_cooldown = CreateConVar("l4d_me_cooldown", "0.25", "Cool down time between multiple equipment switch.");
 	l4d_me_afk_save = CreateConVar("l4d_me_afk_save", "1", "0=Disable AFK Save, 1=Enable AFK Save");
 	l4d_me_custom_notify = CreateConVar("l4d_me_custom_notify", "2", "0=Disable Custom Message, 1=Enable Chat Message, 2=Enable Hint Message");
 	l4d_me_custom_notify_msg = CreateConVar("l4d_me_custom_notify_msg", "|| --->PRESS [H] FOR HELP<--- ||", "Create a custom welcome message for your server.");
@@ -650,7 +652,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
 		if (w > 0)
 			LastWeapon[client] = w;
-			//LastSwitchTime[client] = time;
 	}
 //SHIFT + R
 	else if (iMode[client] == 2 && (buttons & IN_SPEED) && (buttons & IN_RELOAD))
@@ -830,7 +831,9 @@ int Process(int client, float time, int button, bool isSwitch, int currentWeapon
 	int NewWeapon = 0;
 
 	if (!client || !IsSurvivor(client) || !IsPlayerAlive(client))
-		return NewWeapon;
+		return 0;
+		
+	if (time - LastMeSwitchTime[client] < GetConVarFloat(l4d_me_cooldown)) return 0;
 
 	int m_tongueOwner = GetEntProp(client, Prop_Send, "m_tongueOwner");
 	int m_pounceAttacker = GetEntProp(client, Prop_Send, "m_pounceAttacker");
@@ -838,7 +841,7 @@ int Process(int client, float time, int button, bool isSwitch, int currentWeapon
 	int m_isHangingFromLedge = GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1);
 
 	if (m_pounceAttacker > 0 || m_tongueOwner > 0 || m_isHangingFromLedge > 0 || m_isIncapacitated > 0)
-		return NewWeapon;
+		return 0;
 
 	if(L4D2Version)
 	{
@@ -846,7 +849,7 @@ int Process(int client, float time, int button, bool isSwitch, int currentWeapon
 		int m_jockeyAttacker = GetEntProp(client, Prop_Send, "m_jockeyAttacker", 1);
 
 		if(m_pummelAttacker > 0 || m_jockeyAttacker > 0)
-			return NewWeapon;
+			return 0;
 	}
 
 	int ActiveWeapon = currentWeapon;
@@ -888,6 +891,7 @@ int Process(int client, float time, int button, bool isSwitch, int currentWeapon
 	{
 		SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", ActiveWeapon);
 		NewWeapon = ActiveWeapon;
+		LastMeSwitchTime[client] = time;
 	}
 
 	return NewWeapon;

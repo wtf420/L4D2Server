@@ -7,6 +7,7 @@
 #define SOUND_KILL1  "/weapons/knife/knife_hitwall1.wav"
 #define SOUND_KILL2  "/weapons/knife/knife_deploy.wav"
 
+#define NOT_INCAP		 0
 #define INCAP			 1
 #define INCAP_GRAB		 2
 #define INCAP_POUNCE	 3
@@ -23,10 +24,9 @@
 #define TRANSLATIONS_FILENAME	"l4d_selfhelp.phrases"
 
 new HelpState[MAXPLAYERS+1];
-new HelpOhterState[MAXPLAYERS+1];
+new HelpOtherState[MAXPLAYERS+1];
 new Attacker[MAXPLAYERS+1];
 new IncapType[MAXPLAYERS+1];
-new Handle:Timers[MAXPLAYERS+1];
 
 new Float:HelpStartTime[MAXPLAYERS+1];
 
@@ -141,7 +141,7 @@ public OnMapStart()
 {
 	if(L4D2Version)	PrecacheSound(SOUND_KILL2, true) ;
 	else PrecacheSound(SOUND_KILL1, true) ;
-
+	reset();
 }
 public Action:RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -200,7 +200,7 @@ public lunge_pounce (Handle:event, const String:name[], bool:dontBroadcast)
 	IncapType[victim]=INCAP_POUNCE;
 	if(	GetConVarInt(l4d_selfhelp_pounce)>0)
 	{
-		CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
+		// CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
 		CreateTimer(GetConVarFloat(l4d_selfhelp_hintdelay), AdvertisePills, victim);
 	}
 }
@@ -222,7 +222,7 @@ public tongue_grab (Handle:event, const String:name[], bool:dontBroadcast)
 	IncapType[victim]=INCAP_GRAB;
 	if(	GetConVarInt(l4d_selfhelp_grab)>0)
 	{
-		CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
+		// CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
 		CreateTimer(GetConVarFloat(l4d_selfhelp_hintdelay), AdvertisePills, victim);
 	}
 }
@@ -238,7 +238,7 @@ public tongue_release (Handle:event, const String:name[], bool:dontBroadcast)
 	{
 		Attacker[victim] = 0;
 	}
-
+	IncapType[victim]=NOT_INCAP;
 }
 public jockey_ride (Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -251,7 +251,7 @@ public jockey_ride (Handle:event, const String:name[], bool:dontBroadcast)
 	IncapType[victim]=INCAP_RIDE;
 	if(	GetConVarInt(l4d_selfhelp_ride)>0)
 	{
-		CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
+		// CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
 		CreateTimer(GetConVarFloat(l4d_selfhelp_hintdelay), AdvertisePills, victim);
 	}
 }
@@ -267,7 +267,7 @@ public jockey_ride_end (Handle:event, const String:name[], bool:dontBroadcast)
 	{
 		Attacker[victim] = 0;
 	}
-
+	IncapType[victim]=NOT_INCAP;
 }
 
 public charger_pummel_start (Handle:event, const String:name[], bool:dontBroadcast)
@@ -281,7 +281,7 @@ public charger_pummel_start (Handle:event, const String:name[], bool:dontBroadca
 	IncapType[victim]=INCAP_PUMMEL;
 	if(	GetConVarInt(l4d_selfhelp_pummel)>0)
 	{
-		CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
+		// CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
 		CreateTimer(GetConVarFloat(l4d_selfhelp_hintdelay), AdvertisePills, victim);
 	}
 }
@@ -297,7 +297,7 @@ public charger_pummel_end (Handle:event, const String:name[], bool:dontBroadcast
 	{
 		Attacker[victim] = 0;
 	}
-
+	IncapType[victim]=NOT_INCAP;
 }
 
 public Event_Incap (Handle:event, const String:name[], bool:dontBroadcast)
@@ -307,7 +307,7 @@ public Event_Incap (Handle:event, const String:name[], bool:dontBroadcast)
 	IncapType[victim]=INCAP;
 	if(GetConVarInt(l4d_selfhelp_incap)>0)
 	{
-		CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
+		// CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
 		CreateTimer(GetConVarFloat(l4d_selfhelp_hintdelay), AdvertisePills, victim);
 	}
 }
@@ -318,26 +318,56 @@ public Action:player_ledge_grab(Handle:event, String:event_name[], bool:dontBroa
 	IncapType[victim]=INCAP_EDGEGRAB;
 	if(GetConVarInt(l4d_selfhelp_edgegrab)>0)
 	{
-		CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
+		// CreateTimer(GetConVarFloat(l4d_selfhelp_delay), WatchPlayer, victim);
 		CreateTimer(GetConVarFloat(l4d_selfhelp_hintdelay), AdvertisePills, victim);
 	}
 }
 
 
-public Action:WatchPlayer(Handle:timer, any:client)
+public void OnGameFrame()
 {
+	new Float:time = GetEngineTime();
+	for (int client = 1; client <= MaxClients; client++)
+	{
+		if (!IsClientInGame(client) || GetClientTeam(client) != 2 || IsFakeClient(client))
+			continue;
 
-	if (!client) return;
-	if (!IsClientInGame(client)) return;
-	if (!IsPlayerAlive(client)) return;
-	if (!IsPlayerIncapped(client) && !IsPlayerGrapEdge(client) && Attacker[client]==0 )return;
+		if (client == 0)
+		{
+			HelpOtherState[client] = HelpState[client] = STATE_NONE;
+			continue;
+		}
+		if (!IsClientInGame(client) || !IsPlayerAlive(client)  )
+		{
+			HelpOtherState[client] = HelpState[client] = STATE_NONE;
+			continue;
+		}
 
-	if(Timers[client]!=INVALID_HANDLE)return;
+		if (!IsPlayerIncapped(client) && !IsPlayerGrabEdge(client) && Attacker[client] == 0)
+		{
+			HelpOtherState[client] = HelpState[client] = STATE_NONE;
+			IncapType[client]=NOT_INCAP;
+			continue;
+		}
 
-	HelpOhterState[client]=HelpState[client]=STATE_NONE;
-
-	Timers[client]=CreateTimer(1.0/TICKS, PlayerTimer, client, TIMER_REPEAT);
+		if (!IsPlayerIncapped(client) && !IsPlayerGrabEdge(client) && Attacker[client] != 0)
+		{
+			if (!IsClientInGame(Attacker[client]) || !IsPlayerAlive(Attacker[client]))
+			{
+				HelpOtherState[client] = HelpState[client] = STATE_NONE;
+				Attacker[client] = 0;
+				IncapType[client]=NOT_INCAP;
+				continue;
+			}
+		}
+		if (HelpState[client] == STATE_OK )
+		{
+			HelpOtherState[client] = HelpState[client] = STATE_NONE;
+			continue;
+		}
+	}
 }
+
 public Action:AdvertisePills(Handle:timer, any:client)
 {
 
@@ -373,19 +403,19 @@ bool:CanSelfHelp(client)
 		if((self==1 || self==3) && (pills || adrenaline))ok=true;
 		else if ((self==2 || self==3) && kid)ok=true;
 	}
-	else if(IncapType[client]== INCAP_POUNCE)
+	else if(IncapType[client]== INCAP_POUNCE && Attacker[client] != 0)
 	{
 		self=GetConVarInt( l4d_selfhelp_pounce);
 		if((self==1 || self==3) && (pills || adrenaline))ok=true;
 		else if ((self==2 || self==3) && kid)ok=true;
 	}
-	else if(IncapType[client]== INCAP_RIDE)
+	else if(IncapType[client]== INCAP_RIDE && Attacker[client] != 0)
 	{
 		self=GetConVarInt( l4d_selfhelp_ride);
 		if((self==1 || self==3) && (pills || adrenaline))ok=true;
 		else if ((self==2 || self==3) && kid)ok=true;
 	}
-	else if(IncapType[client]== INCAP_PUMMEL)
+	else if(IncapType[client]== INCAP_PUMMEL && Attacker[client] != 0)
 	{
 		self=GetConVarInt( l4d_selfhelp_pummel);
 		if((self==1 || self==3) && (pills || adrenaline))ok=true;
@@ -417,19 +447,19 @@ SelfHelpUseSlot(client)
 		if((self==1 || self==3) && pills!=-1)solt=4;
 		else if ((self==2 || self==3) && kid)solt=3;
 	}
-	else if(IncapType[client]== INCAP_POUNCE)
+	else if(IncapType[client]== INCAP_POUNCE && Attacker[client] != 0)
 	{
 		self=GetConVarInt( l4d_selfhelp_pounce);
 		if((self==1 || self==3) && pills!=-1)solt=4;
 		else if ((self==2 || self==3) && kid)solt=3;
 	}
-	else if(IncapType[client]== INCAP_RIDE)
+	else if(IncapType[client]== INCAP_RIDE && Attacker[client] != 0)
 	{
 		self=GetConVarInt( l4d_selfhelp_ride);
 		if((self==1 || self==3) && pills!=-1)solt=4;
 		else if ((self==2 || self==3) && kid)solt=3;
 	}
-	else if(IncapType[client]== INCAP_PUMMEL)
+	else if(IncapType[client]== INCAP_PUMMEL && Attacker[client] != 0)
 	{
 		self=GetConVarInt( l4d_selfhelp_pummel);
 		if((self==1 || self==3) && pills!=-1)solt=4;
@@ -438,51 +468,9 @@ SelfHelpUseSlot(client)
 	return solt;
 }
 
-public Action:PlayerTimer(Handle:timer, any:client)
+public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon)
 {
 	new Float:time=GetEngineTime();
-
-	if (client==0 )
-	{
-		HelpOhterState[client]=HelpState[client]=STATE_NONE;
-		Timers[client]=INVALID_HANDLE;
-		return Plugin_Stop;
-	}
-	if(!IsClientInGame(client) || !IsPlayerAlive(client)  )
-	{
-		HelpOhterState[client]=HelpState[client]=STATE_NONE;
-		Timers[client]=INVALID_HANDLE;
-		return Plugin_Stop;
-	}
-
-	if( !IsPlayerIncapped(client) && !IsPlayerGrapEdge(client) && Attacker[client]==0)
-	{
-
-		HelpOhterState[client]=HelpState[client]=STATE_NONE;
-		Timers[client]=INVALID_HANDLE;
-		return Plugin_Stop;
-	}
-
-	if(!IsPlayerIncapped(client) && !IsPlayerGrapEdge(client) && Attacker[client]!=0)
-	{
-		if (!IsClientInGame(Attacker[client]) || !IsPlayerAlive(Attacker[client]))
-		{
-			HelpOhterState[client]=HelpState[client]=STATE_NONE;
-			Timers[client]=INVALID_HANDLE;
-			Attacker[client]=0;
-			return Plugin_Stop;
-		}
-
-	}
-	if(HelpState[client]==STATE_OK )
-	{
-		HelpOhterState[client]=HelpState[client]=STATE_NONE;
-		Timers[client]=INVALID_HANDLE;
-		return Plugin_Stop;
-	}
-
-	new buttons = GetClientButtons(client);
-
 	new haveone=0;
 	new PillSlot = GetPlayerWeaponSlot(client, 4);
 	new KitSlot=GetPlayerWeaponSlot(client, 3);
@@ -554,7 +542,6 @@ public Action:PlayerTimer(Handle:timer, any:client)
 	}
 	else if(GetConVarInt(l4d_selfhelp_eachother)>0)
 	{
-
 		if ((buttons & IN_DUCK) ||  (buttons & IN_USE))
 		{
 
@@ -570,7 +557,7 @@ public Action:PlayerTimer(Handle:timer, any:client)
 				{
 					if (IsPlayerAlive(target))
 					{
-						if(GetClientTeam(target)==2 && (IsPlayerIncapped(target) || IsPlayerGrapEdge(target)))
+						if(GetClientTeam(target)==2 && (IsPlayerIncapped(target) || IsPlayerGrabEdge(target)))
 						{
 							GetClientAbsOrigin(target, targetVector);
 							new Float:distance = GetVectorDistance(targetVector, pos);
@@ -589,7 +576,7 @@ public Action:PlayerTimer(Handle:timer, any:client)
 				char msg[250];
 				Format(msg, sizeof(msg), "%t", "Helping Target", other);
 				
-				if(HelpOhterState[client]==STATE_NONE)
+				if(HelpOtherState[client]==STATE_NONE)
 				{
 					if(L4D2Version)
 					{
@@ -599,37 +586,37 @@ public Action:PlayerTimer(Handle:timer, any:client)
 					PrintHintText(other, "%t", "Helping You", other);
 					HelpStartTime[client]=time;
 				}
-				HelpOhterState[client]=STATE_SELFHELP;
+				HelpOtherState[client]=STATE_SELFHELP;
 
 				if(!L4D2Version) ShowBar(client, msg, time-HelpStartTime[client], GetConVarFloat(l4d_selfhelp_durtaion));
 
 				if(time-HelpStartTime[client]>GetConVarFloat(l4d_selfhelp_durtaion))
 				{
 					HelpOther(other, client);
-					HelpOhterState[client]=STATE_NONE;
+					HelpOtherState[client]=STATE_NONE;
 					if(L4D2Version) KillProgressBar(client);
 				}
 
 			}
 			else
 			{
-				if(HelpOhterState[client]!=STATE_NONE)
+				if(HelpOtherState[client]!=STATE_NONE)
 				{
 					if(L4D2Version) KillProgressBar(client);
 					else ShowBar(client, "help other", 0.0, GetConVarFloat(l4d_selfhelp_durtaion));
 				}
-				HelpOhterState[client]=STATE_NONE;
+				HelpOtherState[client]=STATE_NONE;
 
 			}
 		}
 		else
 		{
-			if(HelpOhterState[client]!=STATE_NONE)
+			if(HelpOtherState[client]!=STATE_NONE)
 			{
 				if(L4D2Version) KillProgressBar(client);
 				else ShowBar(client, "help other", 0.0, GetConVarFloat(l4d_selfhelp_durtaion));
 			}
-			HelpOhterState[client]=STATE_NONE;
+			HelpOtherState[client]=STATE_NONE;
 
 		}
 	}
@@ -733,6 +720,7 @@ public Action:PlayerTimer(Handle:timer, any:client)
 			}
 		}
 	}
+
 	return Plugin_Continue;
 }
 
@@ -743,7 +731,7 @@ SelfHelp(client)
 	{
 		return;
 	}
-	if( !IsPlayerIncapped(client) && !IsPlayerGrapEdge(client) && Attacker[client]==0)
+	if( !IsPlayerIncapped(client) && !IsPlayerGrabEdge(client) && Attacker[client]==0)
 	{
 		return;
 	}
@@ -830,7 +818,7 @@ HelpOther(client, helper)
 	if (!IsClientInGame(client) || !IsPlayerAlive(client) )
 		return;
 
-	if( !IsPlayerIncapped(client) && !IsPlayerGrapEdge(client) && Attacker[client]==0)
+	if( !IsPlayerIncapped(client) && !IsPlayerGrabEdge(client) && Attacker[client]==0)
 		return;
 
 	int revivecount = GetEntProp(client, Prop_Send, "m_currentReviveCount");
@@ -854,6 +842,7 @@ HelpOther(client, helper)
 	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", GetConVarFloat(FindConVar("pain_pills_health_value")));
 	SetEntityHealth(client, 1);
+	IncapType[client]=NOT_INCAP;
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -889,6 +878,7 @@ ReviveClientWithKit(client)
 	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", GetConVarFloat(FindConVar("first_aid_heal_percent"))*100.0);
 	SetEntityHealth(client, 1);
+	IncapType[client]=NOT_INCAP;
 }
 ReviveClientWithPills(client)
 {
@@ -912,6 +902,7 @@ ReviveClientWithPills(client)
 	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", GetConVarFloat(FindConVar("pain_pills_health_value")));
 	SetEntityHealth(client, 1);
+	IncapType[client]=NOT_INCAP;
 }
 
 KillAttack(client)
@@ -1014,23 +1005,17 @@ bool:IsPlayerIncapped(client)
 	if (GetEntProp(client, Prop_Send, "m_isIncapacitated", 1)) return true;
 	return false;
 }
-bool:IsPlayerGrapEdge(client)
+bool:IsPlayerGrabEdge(client)
 {
 	return view_as<bool>(GetEntProp(client, Prop_Send, "m_isHangingFromLedge") || GetEntProp(client, Prop_Send, "m_isFallingFromLedge"));
 }
 reset()
 {
-	for (new x = 0; x <= MaxClients; x++)
+	for (new i = 0; i <= MaxClients; i++)
 	{
-			HelpOhterState[x]=HelpState[x]=STATE_NONE;
-			Attacker[x]=0;
-			HelpStartTime[x]=0.0;
-			if(Timers[x]!=INVALID_HANDLE)
-			{
-				KillTimer(Timers[x]);
-
-			}
-			Timers[x]=INVALID_HANDLE;
+		HelpOtherState[i]=HelpState[i]=STATE_NONE;
+		Attacker[i]=0;
+		HelpStartTime[i]=0.0;
 	}
 }
 stock SetupProgressBar(client, Float:time)
