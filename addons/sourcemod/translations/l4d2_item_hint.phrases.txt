@@ -646,11 +646,6 @@
 		"en"			"Found the safe room!"
 	}
 
-	"Safe_Room_Door_Flipped"
-	{
-		"en"			"Found the safe room!"
-	}
-
 	"Radio"
 	{
 		"en"			"Found a radio!"
@@ -659,5 +654,10 @@
 	"Glow_Item"
 	{
 		"en"			"This item is glowing!"
+	}
+
+	"Health_Cabinet"
+	{
+		"en"			"Theres a health cabinet here!"
 	}
 }

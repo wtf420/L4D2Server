@@ -504,7 +504,10 @@ void CreateStringMap()
 	g_smModelToName.SetString("models/infected/jockey.mdl", "Jockey");
 	g_smModelToName.SetString("models/infected/charger.mdl", "Charger");
 	g_smModelToName.SetString("models/props_doors/checkpoint_door_02.mdl", "Safe_Room_Door");
-	g_smModelToName.SetString("models/props_doors/checkpoint_door_-02.mdl", "Safe_Room_Door_Flipped");
+	g_smModelToName.SetString("models/props_doors/checkpoint_door_-02.mdl", "Safe_Room_Door");
+	g_smModelToName.SetString("models/lighthouse/checkpoint_door_lighthouse02.mdl", "Safe_Room_Door");
+	g_smModelToName.SetString("models/props/terror/hamradio.mdl", "Radio");
+	g_smModelToName.SetString("models/props_interiors/medicalcabinet02.mdl", "Health_Cabinet");
 
 	g_smModelHeight = new StringMap();
 
@@ -568,6 +571,9 @@ void CreateStringMap()
 	g_smModelHeight.SetValue("models/weapons/melee/w_shovel.mdl", 5.0);
 	g_smModelHeight.SetValue("models/props_doors/checkpoint_door_02.mdl", 55.0);
 	g_smModelHeight.SetValue("models/props_doors/checkpoint_door_-02.mdl", 55.0);
+	g_smModelToName.SetValue("models/lighthouse/checkpoint_door_lighthouse02.mdl", 55.0);
+	g_smModelToName.SetValue("models/props/terror/hamradio.mdl", 5.0);
+	g_smModelToName.SetValue("models/props_interiors/medicalcabinet02.mdl", 5.0);
 
 	g_smModelNotGlow = new StringMap();
 	// 某些三方圖自製的特感模組無法產生光圈
@@ -935,6 +941,7 @@ void CreateEntityModelGlow(int iEntity, const char[] sEntModelName)
 	delete g_iModelTimer[iEntity];
 
 	// Set new fake model
+	// this block of code is causing crash
 	DispatchKeyValue(entity, "model", sEntModelName);
 	DispatchKeyValue(entity, "targetname", "harry_marked_item");
 	DispatchSpawn(entity);
@@ -962,9 +969,9 @@ void CreateEntityModelGlow(int iEntity, const char[] sEntModelName)
 	///////發光物件完成//////////
 
 	g_iModelIndex[iEntity] = EntIndexToEntRef(entity);
-
+	
 	g_iModelTimer[iEntity] = CreateTimer(g_fItemGlowTimer, Timer_ItemGlow, iEntity);
-
+	
 	//model 只能給誰看?
 	SDKHook(entity, SDKHook_SetTransmit, Hook_SetTransmit_Glow);
 }
@@ -1870,7 +1877,6 @@ void CreateInstructorHint(int client, const float vOrigin[3], const char[] sItem
 				}
 				else sCaption[0] = '\0';
 				Create_env_instructor_hint(iEntity, eItemHint, vOrigin, sTargetName, g_sItemInstructorIcon, sCaption, g_sItemInstructorColor, g_fItemGlowTimer, float(g_iItemGlowRange));
-				PrintToChatAll("Range: %d", g_iItemGlowRange);
 			}
 		}
 		case eSpotMarker:
@@ -1906,7 +1912,6 @@ void CreateInstructorHint(int client, const float vOrigin[3], const char[] sItem
 				if(strlen(g_sSurvivorMarkInstructorColor) > 0) FormatEx(sCaption, sizeof(sCaption), "%s", sItemPhrase);
 				else sCaption[0] = '\0';
 				Create_env_instructor_hint(iEntity, eSurvivorMaker, vOrigin, sTargetName, g_sSurvivorMarkInstructorIcon, sCaption, g_sSurvivorMarkInstructorColor, g_fSurvivorMarkGlowTimer, float(g_iSurvivorMarkGlowRange));
-				PrintToChatAll("Range: %d", g_iSurvivorMarkGlowRange);
 			}
 		}
 	}
@@ -2137,6 +2142,7 @@ void PlayerMarkHint(int client)
 			iEntity = GetEntPropEnt(iEntity, Prop_Data, "m_pParent");
 		}
 
+		bool bCreateGlow = true;
 		static char classname[32];
 		if (GetEntityClassname(iEntity, classname, sizeof(classname)) && HasEntProp(iEntity, Prop_Data, "m_ModelName"))
 		{
@@ -2183,34 +2189,52 @@ void PlayerMarkHint(int client)
 
 					bIsVaildItem = true;
 				}
-				else if (strncmp(classname, "func_button", sizeof(classname), false) == 0) // entity is a button
+				//Skip prop_physics
+				else if (strncmp(classname, "prop_physics", 12, false) == 0)
+				{	
+					bCreateGlow = false;
+					bIsVaildItem = false;
+				}
+				else
 				{
-					int glow_entity = GetEntPropEnt(iEntity, Prop_Send, "m_glowEntity");
-					int parent_entity = GetEntPropEnt(iEntity, Prop_Send, "m_hOwnerEntity");
-					if(IsValidEntity(glow_entity) == true)
+					// If model name is invalid, the game the crash the moment you ping the thing.
+					// If that the case, check for the model in the referenced m_glowEntity or m_hOwnerEntity instead.
+					// If still cannot find the model, skip the glow and just ping the constructor hint
+					// Works on the c5m5 radio and c9m2 switch, havent found a way for the c1m1 elevator button yet
+
+					// Invalid model name
+					if (StrContains(sEntModelName, "*", false) != -1)
 					{
-						// PrintToChatAll("Has Glow");
-						if (GetEntPropString(glow_entity, Prop_Data, "m_ModelName", sEntModelName, sizeof(sEntModelName)) > 1)
+						bCreateGlow = false;
+						int glow_entity = GetEntPropEnt(iEntity, Prop_Send, "m_glowEntity");
+						int parent_entity = GetEntPropEnt(iEntity, Prop_Send, "m_hOwnerEntity");
+						// Try to get model from attached glow_entity
+						if(IsValidEntity(glow_entity) == true)
 						{
-							// PrintToChatAll("%d Glow Model: %s", glow_entity, name);
-							bIsVaildItem = true;
-							iEntity = glow_entity;
+							// PrintToChatAll("Has Glow");
+							if (GetEntPropString(glow_entity, Prop_Data, "m_ModelName", sEntModelName, sizeof(sEntModelName)) > 1)
+							{
+								if (StrContains(sEntModelName, "*", false) == -1)
+								{
+									// PrintToChatAll("%d Glow Model: %s", glow_entity, name);
+									bCreateGlow = true;
+									iEntity = glow_entity;
+								}
+							}
 						}
-					}
-					else if(IsValidEntity(parent_entity) == true)
-					{
-						if (GetEntPropString(parent_entity, Prop_Data, "m_ModelName", sEntModelName, sizeof(sEntModelName)) > 1)
+						// Try to get model from parent_entity
+						else if(IsValidEntity(parent_entity) == true)
 						{
-							// PrintToChatAll("%d Glow Model: %s", glow_entity, name);
-							bIsVaildItem = true;
-							iEntity = parent_entity;
+							if (GetEntPropString(parent_entity, Prop_Data, "m_ModelName", sEntModelName, sizeof(sEntModelName)) > 1)
+							{
+								if (StrContains(sEntModelName, "*", false) == -1)
+								{
+									// PrintToChatAll("%d Glow Model: %s", glow_entity, name);
+									bCreateGlow = true;
+									iEntity = glow_entity;
+								}
+							}
 						}
-					}
-					else
-					{
-						FormatEx(sItemPhrase, sizeof(sItemPhrase), "Button");
-						if( CreateSurvivorMarker(client, client) == true ) return;
-						bIsVaildItem = false;
 					}
 
 					// what is it?
@@ -2218,28 +2242,26 @@ void PlayerMarkHint(int client)
 					{
 						FormatEx(sItemPhrase, sizeof(sItemPhrase), "Radio");
 					}
-					else
+					else if (StrContains(sEntModelName, "door", false) != -1)
+					{
+						FormatEx(sItemPhrase, sizeof(sItemPhrase), "Door");
+					}
+					else if (StrContains(sEntModelName, "button", false) != -1)
 					{
 						FormatEx(sItemPhrase, sizeof(sItemPhrase), "Button");
 					}
-				}
-				else
-				{
-					// what is it?
-					if (StrContains(sEntModelName, "door", false) != -1)
+					else if (StrContains(sEntModelName, "switch", false) != -1)
 					{
-						FormatEx(sItemPhrase, sizeof(sItemPhrase), "Door");
-					} 
-					else if (StrContains(sEntModelName, "radio", false) != -1)
-					{
-						FormatEx(sItemPhrase, sizeof(sItemPhrase), "Radio");
+						FormatEx(sItemPhrase, sizeof(sItemPhrase), "Button");
 					}
 					else
 					{
-						PrintToChatAll("%N found something: (%s - %s)", client, classname, sEntModelName);
 						FormatEx(sItemPhrase, sizeof(sItemPhrase), "Glow_Item");
 					}
 					bIsVaildItem = true;
+
+					// this is for debugging only
+					// PrintToChatAll("%N found something: (%s - %s)", client, classname, sEntModelName);
 				}
 
 				if(bIsVaildItem)
@@ -2266,8 +2288,16 @@ void PlayerMarkHint(int client)
 						}
 
 						g_fItemHintCoolDownTime[client] = GetEngineTime() + g_fItemHintCoolDown;
-						CreateEntityModelGlow(iEntity, sEntModelName);
 
+						if (bCreateGlow) 
+						{						
+							CreateEntityModelGlow(iEntity, sEntModelName);
+						}
+						else
+						{
+							PrintToChatAll("%N found something: (%s - %s)", client, classname, sEntModelName);
+						}
+						
 						if(g_bItemInstructorHint)
 						{
 							float vEndPos[3];
