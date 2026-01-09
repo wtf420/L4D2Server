@@ -703,6 +703,15 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
 				LastWeapon[client] = newweapon;
 			}
+			else
+			{
+				int newweapon = weapon;
+
+				if (LastWeapon[client] != weapon)
+					Process(client, time, buttons, false);
+
+				LastWeapon[client] = newweapon;
+			}
 		}
 	}
 	
@@ -891,8 +900,8 @@ int Process(int client, float time, int button, bool isSwitch, int currentWeapon
 	{
 		SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", ActiveWeapon);
 		NewWeapon = ActiveWeapon;
-		LastMeSwitchTime[client] = time;
 	}
+	LastMeSwitchTime[client] = time;
 
 	return NewWeapon;
 }

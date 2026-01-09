@@ -210,6 +210,7 @@ public pounce_stopped (Handle:event, const String:name[], bool:dontBroadcast)
 	new victim = GetClientOfUserId(GetEventInt(event, "victim"));
 	if (!victim) return;
 	Attacker[victim] = 0;
+	IncapType[victim]= IsPlayerIncapped(victim) ? INCAP : NOT_INCAP;
 }
 public tongue_grab (Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -238,7 +239,7 @@ public tongue_release (Handle:event, const String:name[], bool:dontBroadcast)
 	{
 		Attacker[victim] = 0;
 	}
-	IncapType[victim]=NOT_INCAP;
+	IncapType[victim]= IsPlayerIncapped(victim) ? INCAP : NOT_INCAP;
 }
 public jockey_ride (Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -267,7 +268,7 @@ public jockey_ride_end (Handle:event, const String:name[], bool:dontBroadcast)
 	{
 		Attacker[victim] = 0;
 	}
-	IncapType[victim]=NOT_INCAP;
+	IncapType[victim]= IsPlayerIncapped(victim) ? INCAP : NOT_INCAP;
 }
 
 public charger_pummel_start (Handle:event, const String:name[], bool:dontBroadcast)
@@ -297,7 +298,7 @@ public charger_pummel_end (Handle:event, const String:name[], bool:dontBroadcast
 	{
 		Attacker[victim] = 0;
 	}
-	IncapType[victim]=NOT_INCAP;
+	IncapType[victim]= IsPlayerIncapped(victim) ? INCAP : NOT_INCAP;
 }
 
 public Event_Incap (Handle:event, const String:name[], bool:dontBroadcast)
@@ -326,7 +327,6 @@ public Action:player_ledge_grab(Handle:event, String:event_name[], bool:dontBroa
 
 public void OnGameFrame()
 {
-	new Float:time = GetEngineTime();
 	for (int client = 1; client <= MaxClients; client++)
 	{
 		if (!IsClientInGame(client) || GetClientTeam(client) != 2 || IsFakeClient(client))
