@@ -39,6 +39,7 @@ Handle g_panel_timer = INVALID_HANDLE;
 TopMenu g_admin_menu = null;
 
 ConVar g_enabled;
+ConVar g_allow_active_effect_retrigger;
 ConVar g_time_between_effects;
 ConVar g_short_time_duration;
 ConVar g_normal_time_duration;
@@ -54,6 +55,7 @@ public void OnPluginStart()
 
 	CreateConVar("chaosmod_version", PLUGIN_VERSION, " Version of Chaos Mod on this server ", FCVAR_SPONLY|FCVAR_DONTRECORD);
 	g_enabled = CreateConVar("chaosmod_enabled", "1", "Enable/Disable Chaos Mod", FCVAR_NOTIFY);
+	g_allow_active_effect_retrigger = CreateConVar("chaosmod_g_allow_active_effect_retrigger", "0", "Allow ongoing effects to be selected to trigger.", FCVAR_NOTIFY, true, 0.1);
 	g_time_between_effects = CreateConVar("chaosmod_time_between_effects", "30", "How long to wait in seconds between activating effects", FCVAR_NOTIFY, true, 0.1);
 	g_short_time_duration = CreateConVar("chaosmod_short_time_duration", "15", "A short effect will be enabled for this many seconds", FCVAR_NOTIFY, true, 0.1);
 	g_normal_time_duration = CreateConVar("chaosmod_normal_time_duration", "60", "A normal effect will be enabled for this many seconds", FCVAR_NOTIFY, true, 0.1);
@@ -460,8 +462,8 @@ StringMap AttemptChooseRandomEffect()
 		StringMap effect = view_as<StringMap>(g_effects.Get(i));
 		char name[255];
 		effect.GetString("name", name, sizeof(name));
+
 		bool on_cool_down = false;
-		
 		for (int j = 0; j < g_cooling_down_effects.Length; j++)
 		{
 			StringMap other_effect = view_as<StringMap>(g_cooling_down_effects.Get(j));
@@ -474,7 +476,32 @@ StringMap AttemptChooseRandomEffect()
 			}
 		}
 
-		if (!on_cool_down) available_effects.Push(effect);
+		bool is_allowed = true;
+		char extent_type_buffer[255];
+		effect.GetString("extent_type", extent_type_buffer, sizeof(extent_type_buffer));
+		if (StrEqual(extent_type_buffer, "none", false))
+		{
+			// do nothing and just add like normal
+			is_allowed = false;
+		}
+
+		bool is_active = false;
+		if (is_allowed && !g_allow_active_effect_retrigger.BoolValue)
+		{
+			for (int j = 0; j < g_active_effects.Length; j++)
+			{
+				StringMap other_effect = view_as<StringMap>(g_active_effects.Get(j));
+				char name_other[255];
+				other_effect.GetString("name", name_other, sizeof(name_other));
+				if (StrEqual(name, name_other, false))
+				{
+					is_active = true;
+					break;
+				}
+			}
+		}
+
+		if (!on_cool_down && !is_active) available_effects.Push(effect);
 	}
 
 	if (available_effects.Length > 0)
